@@ -2,6 +2,7 @@ import re
 import time
 import hashlib
 import math
+import json
 from typing import Set, List
 
 
@@ -117,12 +118,29 @@ def load_log_data(file_path: str) -> List[str]:
 
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
-            for line in file:
-                # Шукаємо IP-адреси в рядку
+            for line_num, line in enumerate(file, 1):
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Спроба парсингу як JSON
+                try:
+                    log_entry = json.loads(line)
+                    if "remote_addr" in log_entry:
+                        ip = log_entry["remote_addr"]
+                        # Перевірка валідності IP
+                        if ip_pattern.match(ip):
+                            ip_addresses.append(ip)
+                        continue
+                except json.JSONDecodeError:
+                    pass
+
+                # Якщо не JSON, шукаємо IP-адреси в рядку
                 matches = ip_pattern.findall(line)
                 if matches:
                     # Беремо першу знайдену IP-адресу
                     ip_addresses.append(matches[0])
+
     except FileNotFoundError:
         print(f"Файл {file_path} не знайдено!")
         return []
@@ -198,20 +216,11 @@ def compare_methods(file_path: str) -> None:
     print("Виконується HyperLogLog підрахунок...")
     hll_unique, hll_time = hyperloglog_count(ip_addresses)
 
-    # Обчислення похибки
-    error_percent = abs(exact_unique - hll_unique) / exact_unique * 100
-
     # Виведення результатів у вигляді таблиці
     print("\nРезультати порівняння:")
-    print(f"{'Метрика':<30} {'Точний підрахунок':>20} {'HyperLogLog':>20}")
-    print("-" * 72)
-    print(f"{'Унікальні елементи':<30} {exact_unique:>20.1f} {hll_unique:>20.1f}")
-    print(f"{'Час виконання (сек.)':<30} {exact_time:>20.2f} {hll_time:>20.2f}")
-    print(f"{'Похибка (%)':<30} {0.0:>20.1f} {error_percent:>20.2f}")
-    print(
-        f"{'Прискорення (разів)':<30} {1.0:>20.1f} "
-        f"{exact_time/hll_time if hll_time > 0 else 0:>20.2f}"
-    )
+    print(f"{'':>27} {'Точний підрахунок':>19} {'HyperLogLog':>13}")
+    print(f"{'Унікальні елементи':>27} {exact_unique:>19.1f} {hll_unique:>13.1f}")
+    print(f"{'Час виконання (сек.)':>27} {exact_time:>19.2f} {hll_time:>13.2f}")
 
 
 if __name__ == "__main__":
