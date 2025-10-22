@@ -116,4 +116,4 @@ if __name__ == "__main__":
 
     # Виведення результатів
     for password, status in results.items():
-        print(f"Пароль '{password}' - {status}.")
+        print(f"Пароль '{password}' — {status}.")
